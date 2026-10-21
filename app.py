@@ -10,7 +10,14 @@ from config import Config
 import database
 import analytics
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, 'templates'),
+    static_folder=os.path.join(BASE_DIR, 'static'),
+    static_url_path='/static'
+)
 app.config.from_object(Config)
 
 # Initialize database schema safely at startup (resilient to serverless cold starts)
@@ -40,6 +47,10 @@ def inject_global_data():
 # 1. Dashboard (Index)
 # --------------------------------------------------------------------
 @app.route('/')
+@app.route('/index')
+@app.route('/api')
+@app.route('/api/index')
+@app.route('/api/index.py')
 def index():
     """
     Main dashboard displaying summary KPI cards, Matplotlib charts,

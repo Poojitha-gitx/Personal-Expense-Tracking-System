@@ -132,5 +132,27 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         self.assertIsNotNone(empty_analysis['pie_chart'])
         self.assertIsNotNone(empty_analysis['bar_chart'])
 
+    def test_08_static_assets_and_vercel_entrypoint(self):
+        """Verify static CSS/JS load correctly and Vercel routing paths work."""
+        # 1. Test Static files
+        css_resp = self.client.get('/static/css/style.css')
+        self.assertEqual(css_resp.status_code, 200)
+        self.assertIn(b':root', css_resp.data)
+
+        js_resp = self.client.get('/static/js/app.js')
+        self.assertEqual(js_resp.status_code, 200)
+        self.assertIn(b'DOMContentLoaded', js_resp.data)
+
+        # 2. Test Vercel aliases
+        for alias in ['/api', '/api/index', '/api/index.py']:
+            alias_resp = self.client.get(alias)
+            self.assertEqual(alias_resp.status_code, 200)
+            self.assertIn(b'ExpenseTracker', alias_resp.data)
+
+        # 3. Test Vercel entrypoint callable
+        import api.index as vercel_entry
+        self.assertIsNotNone(vercel_entry.app)
+
 if __name__ == '__main__':
     unittest.main()
+
