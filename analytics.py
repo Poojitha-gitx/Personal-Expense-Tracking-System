@@ -6,12 +6,17 @@ Uses:
 - Matplotlib for category-wise pie charts and month-wise bar charts
 """
 
+import os
 import io
 import base64
+
+# Configure Matplotlib writable cache directory for serverless environments (e.g. Vercel / AWS Lambda)
+os.environ.setdefault('MPLCONFIGDIR', '/tmp/matplotlib')
+
 import numpy as np
 import pandas as pd
 import matplotlib
-# Headless backend for web server environment
+# Headless backend for web server and serverless environment
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker

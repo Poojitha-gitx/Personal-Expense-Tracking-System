@@ -13,9 +13,13 @@ import analytics
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Ensure database is initialized at startup
-with app.app_context():
-    database.init_db()
+# Initialize database schema safely at startup (resilient to serverless cold starts)
+try:
+    with app.app_context():
+        database.init_db()
+except Exception as e:
+    print(f"[INFO] Initial database connection check deferred: {e}")
+
 
 @app.context_processor
 def inject_global_data():

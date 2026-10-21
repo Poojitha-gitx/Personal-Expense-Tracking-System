@@ -19,6 +19,7 @@ def get_db_connection(include_database=True):
         'port': Config.MYSQL_PORT,
         'user': Config.MYSQL_USER,
         'password': Config.MYSQL_PASSWORD,
+        'connection_timeout': 10
     }
     if include_database:
         conn_params['database'] = Config.MYSQL_DB
