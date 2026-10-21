@@ -137,10 +137,14 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         # 1. Test Static files
         css_resp = self.client.get('/static/css/style.css')
         self.assertEqual(css_resp.status_code, 200)
+        self.assertIn('text/css', css_resp.headers.get('Content-Type', ''))
+        self.assertNotIn(b'<!DOCTYPE html>', css_resp.data)
         self.assertIn(b':root', css_resp.data)
 
         js_resp = self.client.get('/static/js/app.js')
         self.assertEqual(js_resp.status_code, 200)
+        self.assertIn('javascript', js_resp.headers.get('Content-Type', ''))
+        self.assertNotIn(b'<!DOCTYPE html>', js_resp.data)
         self.assertIn(b'DOMContentLoaded', js_resp.data)
 
         # 2. Test Vercel aliases
@@ -152,6 +156,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         # 3. Test Vercel entrypoint callable
         import api.index as vercel_entry
         self.assertIsNotNone(vercel_entry.app)
+
 
 if __name__ == '__main__':
     unittest.main()

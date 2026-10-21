@@ -5,7 +5,7 @@ Flask Web Application Main Entry Point
 
 import os
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 from config import Config
 import database
 import analytics
@@ -19,6 +19,23 @@ app = Flask(
     static_url_path='/static'
 )
 app.config.from_object(Config)
+
+# Explicit static file handler ensuring correct CSS/JS MIME types and HTTP 200 on serverless
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """Serve static CSS, JS, and asset files with strict MIME type enforcement."""
+    mimetype = None
+    if filename.endswith('.css'):
+        mimetype = 'text/css'
+    elif filename.endswith('.js'):
+        mimetype = 'application/javascript'
+        
+    return send_from_directory(
+        app.static_folder,
+        filename,
+        mimetype=mimetype
+    )
+
 
 # Initialize database schema safely at startup (resilient to serverless cold starts)
 try:
