@@ -319,5 +319,6 @@ def api_get_expense(expense_id):
     return jsonify({'success': False, 'message': 'Expense not found'}), 404
 
 if __name__ == '__main__':
-    print("[*] Starting Personal Expense Tracking and Analysis System on http://127.0.0.1:5000 ...")
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    print(f"[*] Starting Personal Expense Tracking and Analysis System on http://0.0.0.0:{port} ...")
+    app.run(debug=True, host='0.0.0.0', port=port)
