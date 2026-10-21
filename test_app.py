@@ -160,26 +160,63 @@ class ExpenseTrackerTestCase(unittest.TestCase):
             self.assertEqual(resp.status_code, 200, f"Route {path} failed with {resp.status_code}")
             self.assertIn(expected_text, resp.data, f"Route {path} missing expected content")
 
-        # 3. Test simulated Vercel serverless requests through api.index.app
+        # 3. Test Flask fallback aliases for Vercel serverless entrypoints
+        for alias in ['/api', '/api/index', '/api/index.py', '/index.py']:
+            resp = self.client.get(alias)
+            self.assertEqual(resp.status_code, 200, f"Alias {alias} failed with {resp.status_code}")
+            self.assertIn(b'Financial Dashboard', resp.data, f"Alias {alias} did not load Dashboard")
+
+        # 4. Test simulated Vercel serverless requests through api.index.app WSGI middleware
         from werkzeug.test import Client
         from werkzeug.wrappers import Response
         import api.index as vercel_entry
         
         vercel_client = Client(vercel_entry.app, Response)
 
-        # Simulate Vercel rewrite: /api/index.py?__vercel_route__=<route>
-        vercel_simulations = [
-            ('/api/index.py?__vercel_route__=/', b'Financial Dashboard'),
-            ('/api/index.py?__vercel_route__=/expenses', b'Expenses Ledger'),
-            ('/api/index.py?__vercel_route__=/analytics', b'Statistical Data Analytics'),
-            ('/api/index.py?__vercel_route__=/reports', b'Monthly Expense Reports'),
-            ('/api/index.py?__vercel_route__=/categories', b'Expense Categories'),
-            ('/api/index.py?category_id=1&__vercel_route__=/expenses', b'Expenses Ledger')
+        # Test A: Vercel production headers (HTTP_X_MATCHED_PATH)
+        header_simulations = [
+            ({'HTTP_X_MATCHED_PATH': '/'}, b'Financial Dashboard'),
+            ({'HTTP_X_MATCHED_PATH': '/expenses'}, b'Expenses Ledger'),
+            ({'HTTP_X_MATCHED_PATH': '/analytics'}, b'Statistical Data Analytics'),
+            ({'HTTP_X_MATCHED_PATH': '/reports'}, b'Monthly Expense Reports'),
+            ({'HTTP_X_MATCHED_PATH': '/categories'}, b'Expense Categories'),
+            ({'HTTP_X_MATCHED_PATH': '/expenses?category_id=1'}, b'Expenses Ledger'),
         ]
-        for v_url, v_text in vercel_simulations:
-            v_resp = vercel_client.get(v_url)
-            self.assertEqual(v_resp.status_code, 200, f"Vercel simulation {v_url} failed with {v_resp.status_code}")
-            self.assertIn(v_text, v_resp.data, f"Vercel simulation {v_url} returned wrong page")
+        for headers, expected_content in header_simulations:
+            v_resp = vercel_client.get('/api/index.py', headers=headers)
+            self.assertEqual(v_resp.status_code, 200, f"Vercel header test failed with {v_resp.status_code}")
+            self.assertIn(expected_content, v_resp.data, "Vercel header test returned wrong page")
+
+        # Test B: Standard HTTP client headers (as received from Vercel Edge proxy)
+        edge_simulations = [
+            ({'X-Matched-Path': '/'}, b'Financial Dashboard'),
+            ({'X-Matched-Path': '/expenses'}, b'Expenses Ledger'),
+            ({'X-Matched-Path': '/analytics'}, b'Statistical Data Analytics'),
+            ({'X-Matched-Path': '/reports'}, b'Monthly Expense Reports'),
+            ({'X-Matched-Path': '/categories'}, b'Expense Categories'),
+            ({'X-Now-Route-Matches': '1=expenses'}, b'Expenses Ledger'),
+            ({'X-Forwarded-Uri': '/reports'}, b'Monthly Expense Reports'),
+        ]
+        for headers, expected_content in edge_simulations:
+            v_resp = vercel_client.get('/api/index.py', headers=headers)
+            self.assertEqual(v_resp.status_code, 200)
+            self.assertIn(expected_content, v_resp.data)
+
+        # Test C: Forwarded URL proxy headers
+        fwd_resp = vercel_client.get('/api/index.py', headers={'HTTP_X_FORWARDED_URI': '/categories'})
+        self.assertEqual(fwd_resp.status_code, 200)
+        self.assertIn(b'Expense Categories', fwd_resp.data)
+
+        # Test D: Clean rewrite with no headers (defaults safely to dashboard)
+        clean_resp = vercel_client.get('/api/index.py')
+        self.assertEqual(clean_resp.status_code, 200)
+        self.assertIn(b'Financial Dashboard', clean_resp.data)
+
+        # Test E: Static asset delivery through middleware
+        static_resp = vercel_client.get('/static/css/style.css')
+        self.assertEqual(static_resp.status_code, 200)
+        self.assertIn('text/css', static_resp.headers.get('Content-Type', ''))
+        self.assertIn(b':root', static_resp.data)
 
 if __name__ == '__main__':
     unittest.main()
