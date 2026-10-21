@@ -6,8 +6,8 @@
       "destination": "/static/$1"
     },
     {
-      "source": "/((?!static/).*)",
-      "destination": "/api/index.py"
+      "source": "/(.*)",
+      "destination": "/api/index.py?__vercel_route__=/$1"
     }
   ]
 }

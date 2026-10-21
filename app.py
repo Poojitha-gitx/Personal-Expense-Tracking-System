@@ -65,9 +65,6 @@ def inject_global_data():
 # --------------------------------------------------------------------
 @app.route('/')
 @app.route('/index')
-@app.route('/api')
-@app.route('/api/index')
-@app.route('/api/index.py')
 def index():
     """
     Main dashboard displaying summary KPI cards, Matplotlib charts,

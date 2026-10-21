@@ -147,17 +147,41 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         self.assertNotIn(b'<!DOCTYPE html>', js_resp.data)
         self.assertIn(b'DOMContentLoaded', js_resp.data)
 
-        # 2. Test Vercel aliases
-        for alias in ['/api', '/api/index', '/api/index.py']:
-            alias_resp = self.client.get(alias)
-            self.assertEqual(alias_resp.status_code, 200)
-            self.assertIn(b'ExpenseTracker', alias_resp.data)
+        # 2. Test every individual route on the Flask app directly
+        routes_to_test = [
+            ('/', b'Financial Dashboard'),
+            ('/expenses', b'Expenses Ledger'),
+            ('/analytics', b'Statistical Data Analytics'),
+            ('/reports', b'Monthly Expense Reports'),
+            ('/categories', b'Expense Categories')
+        ]
+        for path, expected_text in routes_to_test:
+            resp = self.client.get(path)
+            self.assertEqual(resp.status_code, 200, f"Route {path} failed with {resp.status_code}")
+            self.assertIn(expected_text, resp.data, f"Route {path} missing expected content")
 
-        # 3. Test Vercel entrypoint callable
+        # 3. Test simulated Vercel serverless requests through api.index.app
+        from werkzeug.test import Client
+        from werkzeug.wrappers import Response
         import api.index as vercel_entry
-        self.assertIsNotNone(vercel_entry.app)
+        
+        vercel_client = Client(vercel_entry.app, Response)
 
+        # Simulate Vercel rewrite: /api/index.py?__vercel_route__=<route>
+        vercel_simulations = [
+            ('/api/index.py?__vercel_route__=/', b'Financial Dashboard'),
+            ('/api/index.py?__vercel_route__=/expenses', b'Expenses Ledger'),
+            ('/api/index.py?__vercel_route__=/analytics', b'Statistical Data Analytics'),
+            ('/api/index.py?__vercel_route__=/reports', b'Monthly Expense Reports'),
+            ('/api/index.py?__vercel_route__=/categories', b'Expense Categories'),
+            ('/api/index.py?category_id=1&__vercel_route__=/expenses', b'Expenses Ledger')
+        ]
+        for v_url, v_text in vercel_simulations:
+            v_resp = vercel_client.get(v_url)
+            self.assertEqual(v_resp.status_code, 200, f"Vercel simulation {v_url} failed with {v_resp.status_code}")
+            self.assertIn(v_text, v_resp.data, f"Vercel simulation {v_url} returned wrong page")
 
 if __name__ == '__main__':
     unittest.main()
+
 
