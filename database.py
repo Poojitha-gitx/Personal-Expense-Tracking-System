@@ -7,12 +7,14 @@ All database credentials are read directly from .env via Config.
 import os
 from decimal import Decimal
 import mysql.connector
+import certifi
 from mysql.connector import Error as MySQLError
 from config import Config
 
 def get_db_connection(include_database=True):
     """
-    Establish a connection to MySQL server using credentials from .env.
+    Establish a connection to MySQL/TiDB server using credentials from environment variables.
+    Configures TLS/SSL automatically for cloud databases like TiDB Cloud while supporting local MySQL.
     """
     conn_params = {
         'host': Config.MYSQL_HOST,
@@ -23,33 +25,39 @@ def get_db_connection(include_database=True):
     }
     if include_database:
         conn_params['database'] = Config.MYSQL_DB
-        
+
+    # TLS/SSL Configuration for TiDB Cloud & Remote Hosts
+    is_local_host = Config.MYSQL_HOST in ('localhost', '127.0.0.1', '')
+    should_use_ssl = (not Config.MYSQL_SSL_DISABLED) and (Config.MYSQL_USE_SSL or not is_local_host)
+
+    if should_use_ssl:
+        ca_path = Config.MYSQL_SSL_CA if Config.MYSQL_SSL_CA else certifi.where()
+        conn_params['ssl_ca'] = ca_path
+        conn_params['ssl_verify_cert'] = True
+
     return mysql.connector.connect(**conn_params)
 
 def init_db():
     """
-    Initializes the MySQL database and tables from schema.sql.
-    Creates expense_tracker_db if missing, and creates:
-    - categories (category_id, category_name)
-    - expenses (expense_id, expense_date, category_id, amount, description, payment_method)
-    Populates sample fictional data if tables are empty.
+    Verifies that the database tables exist.
+    Preserves all existing tables and data on TiDB Cloud without recreation.
     """
     try:
-        # Step 1: Connect to MySQL server without database to ensure database exists
-        server_conn = get_db_connection(include_database=False)
-        server_cursor = server_conn.cursor()
-        server_cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{Config.MYSQL_DB}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;")
-        server_cursor.close()
-        server_conn.close()
-
-        # Step 2: Connect to the specific database
         conn = get_db_connection(include_database=True)
         cursor = conn.cursor()
 
-        # Check if categories table exists
+        # Check if tables exist
         cursor.execute("SHOW TABLES LIKE 'categories'")
         has_categories = cursor.fetchone()
+        cursor.execute("SHOW TABLES LIKE 'expenses'")
+        has_expenses = cursor.fetchone()
 
+        if has_categories and has_expenses:
+            cursor.close()
+            conn.close()
+            return True, "Online database verified. Existing tables and records preserved."
+
+        # If categories table is missing, initialize schema
         if not has_categories:
             schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
             with open(schema_path, 'r', encoding='utf-8') as f:
@@ -60,29 +68,13 @@ def init_db():
                 if stmt and not stmt.lower().startswith('create database') and not stmt.lower().startswith('use '):
                     cursor.execute(stmt)
             conn.commit()
-            print("[INFO] MySQL schema.sql executed.")
-
-        # Ensure all standard academic categories exist without duplicating or deleting existing data
-        default_categories = [
-            'Food & Dining',
-            'Shopping',
-            'Transportation',
-            'Education',
-            'Healthcare',
-            'Entertainment',
-            'Bills & Utilities',
-            'Groceries',
-            'Other'
-        ]
-        for cat in default_categories:
-            cursor.execute("INSERT IGNORE INTO categories (category_name) VALUES (%s)", (cat,))
-        conn.commit()
+            print("[INFO] Schema initialized.")
 
         cursor.close()
         conn.close()
-        return True, "MySQL database initialized successfully."
+        return True, "Database verified successfully."
     except MySQLError as err:
-        return False, f"MySQL Error: {err}"
+        return False, f"Database Error: {err}"
 
 # --------------------------------------------------------------------
 # Category CRUD Helpers (MySQL)

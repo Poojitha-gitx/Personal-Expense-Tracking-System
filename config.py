@@ -14,3 +14,9 @@ class Config:
     MYSQL_USER = os.getenv('MYSQL_USER', 'root')
     MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', '')
     MYSQL_DB = os.getenv('MYSQL_DB', 'expense_tracker_db')
+    
+    # SSL/TLS Settings for TiDB Cloud / Remote MySQL
+    MYSQL_SSL_CA = os.getenv('MYSQL_SSL_CA', '')
+    MYSQL_SSL_DISABLED = os.getenv('MYSQL_SSL_DISABLED', '').lower() in ('true', '1', 'yes')
+    MYSQL_USE_SSL = os.getenv('MYSQL_USE_SSL', '').lower() in ('true', '1', 'yes')
+

@@ -163,7 +163,29 @@ http://127.0.0.1:5000
 
 ---
 
+## ☁️ Cloud Deployment (TiDB Cloud + Vercel)
+
+This application is ready for serverless deployment on **Vercel** with **TiDB Cloud** (MySQL-compatible managed database).
+
+### 1. Database Configuration (TiDB Cloud)
+TiDB Cloud enforces TLS 1.2+ encryption. The application automatically detects remote database hosts and configures TLS/SSL certificate verification using `certifi`.
+
+### 2. Setting Environment Variables in Vercel
+When importing your repository into Vercel, navigate to **Project Settings &rarr; Environment Variables** and add:
+
+| Environment Variable | Description / Value |
+| :--- | :--- |
+| `MYSQL_HOST` | TiDB host (e.g. `gateway01.ap-northeast-1.prod.aws.tidbcloud.com`) |
+| `MYSQL_PORT` | `4000` |
+| `MYSQL_USER` | TiDB username (e.g. `your_user.root`) |
+| `MYSQL_PASSWORD` | Your TiDB Cloud database password |
+| `MYSQL_DB` | `expense_tracker_db` |
+| `SECRET_KEY` | Random secure string (e.g. 32-character hexadecimal key) |
+
+---
+
 ## 📚 Academic Submission Notes
 - **Independent Project:** Developed strictly within academic scope without third-party payment gateways, banking APIs, or authentication overhead.
 - **Data Integrity:** Strict decimal formatting (`DECIMAL(10,2)` in MySQL, `float` rounded to 2 places in Python) guarantees no fractional currency drift.
 - **Code Readability:** Every file contains clear docstrings and comments explaining how backend routes interact with the analytical libraries.
+
